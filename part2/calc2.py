@@ -1,7 +1,7 @@
 # Token types
 # EOF (end-of-file) token is used to indicate that
 # there is no more input left for lexical analysis
-INTEGER, PLUS, MINUS, EOF = 'INTEGER', 'PLUS', 'MINUS', 'EOF'
+INTEGER, TIMES, DIVIDE, PLUS, MINUS, EOF = 'INTEGER', 'TIMES', 'DIVIDE', 'PLUS', 'MINUS', 'EOF'
 
 
 class Token(object):
@@ -17,6 +17,9 @@ class Token(object):
         Examples:
             Token(INTEGER, 3)
             Token(PLUS '+')
+            Token(MINUS, '-')
+            Token(TIMES, '*')
+            Token(DIVIDE, '/')
         """
         return 'Token({type}, {value})'.format(
             type=self.type,
@@ -36,6 +39,7 @@ class Interpreter(object):
         # current token instance
         self.current_token = None
         self.current_char = self.text[self.pos]
+        self.tokens = []
 
     def error(self):
         raise Exception('Error parsing input')
@@ -75,6 +79,14 @@ class Interpreter(object):
             if self.current_char.isdigit():
                 return Token(INTEGER, self.integer())
 
+            if self.current_char == '*':
+                self.advance()
+                return Token(TIMES, '*')
+            
+            if self.current_char == '/':
+                self.advance()
+                return Token(DIVIDE, '/')
+            
             if self.current_char == '+':
                 self.advance()
                 return Token(PLUS, '+')
@@ -103,37 +115,45 @@ class Interpreter(object):
         expr -> INTEGER PLUS INTEGER
         expr -> INTEGER MINUS INTEGER
         """
-        # set current token to the first token taken from the input
-        self.current_token = self.get_next_token()
+        result = None
 
-        # we expect the current token to be an integer
-        left = self.current_token
-        self.eat(INTEGER)
+        while not self.current_token or self.current_token.type != EOF:
+            # If there is more than one op, "left" will
+            # be the result of the previous operation. Otherwise,
+            # we'll use the first token.
+            if result:
+                left_val = result
+            else:
+                self.current_token = self.get_next_token()
+                left = self.current_token
+                self.eat(INTEGER)
+                left_val = left.value
 
-        # we expect the current token to be either a '+' or '-'
-        op = self.current_token
-        if op.type == PLUS:
-            self.eat(PLUS)
-        else:
-            self.eat(MINUS)
+            # we expect the current token to be either a '+' or '-'
+            op = self.current_token
+            if op.type == TIMES:
+                self.eat(TIMES)
+            elif op.type == DIVIDE:
+                self.eat(DIVIDE)
+            elif op.type == PLUS:
+                self.eat(PLUS)
+            elif op.type == MINUS:
+                self.eat(MINUS)
 
-        # we expect the current token to be an integer
-        right = self.current_token
-        self.eat(INTEGER)
-        # after the above call the self.current_token is set to
-        # EOF token
+            # we expect the current token to be an integer
+            right = self.current_token
+            self.eat(INTEGER)
 
-        # at this point either the INTEGER PLUS INTEGER or
-        # the INTEGER MINUS INTEGER sequence of tokens
-        # has been successfully found and the method can just
-        # return the result of adding or subtracting two integers,
-        # thus effectively interpreting client input
-        if op.type == PLUS:
-            result = left.value + right.value
-        else:
-            result = left.value - right.value
+            if op.type == TIMES:
+                result = left_val * right.value
+            elif op.type == DIVIDE:
+                result = left_val / right.value
+            elif op.type == PLUS:
+                result = left_val + right.value
+            elif op.type == MINUS:
+                result = left_val - right.value
+                
         return result
-
 
 def main():
     while True:
